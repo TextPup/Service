@@ -1,14 +1,14 @@
-import app from "./index.js";
-import { initDatabase, db, sqlite } from "./db/client.js";
-import { systemConfig, users, contacts, threads, messages, attachments, sessions } from "./db/schema.js";
-import { initializeVault, generateRecoveryKey, encryptField, decryptField } from "./crypto/vault.js";
-import { createSession } from "./auth/session.js";
+import app from "../src/index.js";
+import { initDatabase, db, sqlite } from "../src/db/client.js";
+import { systemConfig, users, contacts, threads, messages, attachments, sessions } from "../src/db/schema.js";
+import { initializeVault, generateRecoveryKey, encryptField, decryptField } from "../src/crypto/vault.js";
+import { createSession } from "../src/auth/session.js";
 import { eq } from "drizzle-orm";
 import sharp from "sharp";
 import fs from "node:fs/promises";
 
-async function runPhase6Tests() {
-  console.log("--- Starting Phase 6 Application Routes Verification Tests ---");
+export async function runApiRoutesTests() {
+  console.log("--- Starting Application Routes Verification Tests ---");
 
   // 1. Initialize DB and Setup Authenticated Admin Session
   console.log("1. Setting up initialized database and session...");
@@ -119,8 +119,6 @@ END:VCARD
 
   // 4. Test Outbound SMS & Automated SIM Routing
   console.log("4. Testing Thread Creation & Outbound SMS with SIM Routing...");
-
-  // Alice Smith has preferredSim: 2. Initiating new thread to Alice without specifying SIM:
   const newThreadRes = await app.request("/api/threads/new", {
     method: "POST",
     headers: authHeaders,
@@ -143,8 +141,6 @@ END:VCARD
 
   // 5. Test Outbound MMS with Attachment
   console.log("5. Testing Outbound MMS with Compressed Attachment...");
-
-  // Create test image
   const testSvg = `<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="600" fill="#5B5CE6"/></svg>`;
   const testJpg = await sharp(Buffer.from(testSvg)).jpeg().toBuffer();
   const base64Jpg = testJpg.toString("base64");
@@ -197,7 +193,6 @@ END:VCARD
 
   // 7. Test Authenticated Media Streaming (/api/media/:id)
   console.log("7. Testing Media Streaming (/api/media/:id?variant=thumb|full)...");
-  // Thumbnail
   const thumbRes = await app.request(`/api/media/${attachmentId}?variant=thumb`, {
     headers: { Authorization: `Bearer ${sessionId}` },
   });
@@ -210,7 +205,6 @@ END:VCARD
     throw new Error(`Expected image/webp thumbnail, got: ${thumbRes.headers.get("content-type")}`);
   }
 
-  // Full Media
   const fullRes = await app.request(`/api/media/${attachmentId}?variant=full`, {
     headers: { Authorization: `Bearer ${sessionId}` },
   });
@@ -264,12 +258,14 @@ END:VCARD
   }
   console.log("   Thread and associated encrypted assets purged successfully!");
 
-  console.log("--- All Phase 6 Tests Passed Successfully! ---");
+  console.log("--- All Application Routes Tests Passed Successfully! ---");
 }
 
-runPhase6Tests()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Test failed:", err);
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("api-routes.test.ts") || process.argv[1]?.endsWith("api-routes.test.js")) {
+  runApiRoutesTests()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Test failed:", err);
+      process.exit(1);
+    });
+}

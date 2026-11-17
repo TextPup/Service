@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { initDatabase, db, sqlite } from "./db/client.js";
-import { threads, messages, attachments, pendingWebhooks, systemConfig } from "./db/schema.js";
+import { initDatabase, db, sqlite } from "../src/db/client.js";
+import { threads, messages, attachments, pendingWebhooks, systemConfig } from "../src/db/schema.js";
 import {
   initializeVault,
   lockVault,
@@ -9,21 +9,21 @@ import {
   generateRecoveryKey,
   hashPhone,
   normalizePhone,
-} from "./crypto/vault.js";
+} from "../src/crypto/vault.js";
 import {
   verifyWebhookSignature,
   processWebhookEvent,
   processPendingWebhooks,
   lastDeviceHeartbeat,
-} from "./gateway/webhookHandler.js";
-import { eventBus, MessageNewEvent, MessageStatusEvent } from "./gateway/eventBus.js";
-import { SmsGateClient } from "./gateway/smsgateClient.js";
-import { syncInboxMessages } from "./gateway/inboxSync.js";
+} from "../src/gateway/webhookHandler.js";
+import { eventBus, MessageNewEvent, MessageStatusEvent } from "../src/gateway/eventBus.js";
+import { SmsGateClient } from "../src/gateway/smsgateClient.js";
+import { syncInboxMessages } from "../src/gateway/inboxSync.js";
 import { eq } from "drizzle-orm";
 import fs from "node:fs/promises";
 
-async function runPhase4Tests() {
-  console.log("--- Starting Phase 4 Gateway & Webhook Verification Tests ---");
+export async function runGatewaySyncTests() {
+  console.log("--- Starting Gateway, Webhooks & Sync Tests ---");
 
   // 1. Initialize DB and Vault
   console.log("1. Setting up Database & Initializing Vault...");
@@ -46,8 +46,8 @@ async function runPhase4Tests() {
       wrappedDekRecovery: vault.wrappedDekRecovery,
       kdfSalt: vault.kdfSalt,
       gatewayUrl: "http://mock-smsgate:3000",
-      gatewayUserEnc: vault.wrappedDekPassword, // Placeholder
-      gatewayPassEnc: vault.wrappedDekPassword, // Placeholder
+      gatewayUserEnc: vault.wrappedDekPassword,
+      gatewayPassEnc: vault.wrappedDekPassword,
       webhookSecretEnc: vault.wrappedDekPassword,
       simProfilesJsonEnc: vault.wrappedDekPassword,
       ephemeralPublicKey: vault.ephemeralPublicKey,
@@ -111,7 +111,7 @@ async function runPhase4Tests() {
     payload: {
       id: "gw_msg_001",
       phoneNumber: "+1 (334) 555-0199",
-      text: "Hello from Android via TextPup Phase 4! \u{1F680}",
+      text: "Hello from Android via TextPup Gateway! \u{1F680}",
       simNumber: 2,
       receivedAt: Date.now(),
     },
@@ -250,7 +250,6 @@ async function runPhase4Tests() {
 
   // 7. Test Inbox Reconciliation & Deduplication
   console.log("7. Testing Google Messages Inbox Reconciliation & Deduplication...");
-  // Create a mock client
   const mockClient = new SmsGateClient("http://localhost:3000");
   mockClient.getInbox = async () => [
     {
@@ -258,15 +257,15 @@ async function runPhase4Tests() {
       address: "+13345550199",
       body: "Manual reply typed in Google Messages",
       date: Date.now(),
-      type: 2, // Outgoing
+      type: 2,
       simNumber: 2,
     },
     {
-      id: "gw_msg_001", // Duplicate of already imported message
+      id: "gw_msg_001",
       address: "+13345550199",
-      body: "Hello from Android via TextPup Phase 4! \u{1F680}",
+      body: "Hello from Android via TextPup Gateway! \u{1F680}",
       date: Date.now(),
-      type: 1, // Incoming
+      type: 1,
       simNumber: 2,
     },
   ];
@@ -277,7 +276,6 @@ async function runPhase4Tests() {
     throw new Error(`Expected 1 imported and 1 skipped, got ${JSON.stringify(syncRes1)}`);
   }
 
-  // Second run: everything should be skipped as duplicate
   const syncRes2 = await syncInboxMessages(mockClient);
   console.log(`   Sync run 2: Imported=${syncRes2.importedCount}, Skipped=${syncRes2.skippedCount}`);
   if (syncRes2.importedCount !== 0 || syncRes2.skippedCount !== 2) {
@@ -285,12 +283,14 @@ async function runPhase4Tests() {
   }
   console.log("   Inbox reconciliation and deduplication verified!");
 
-  console.log("--- All Phase 4 Tests Passed Successfully! ---");
+  console.log("--- All Gateway, Webhook & Sync Tests Passed Successfully! ---");
 }
 
-runPhase4Tests()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Test failed:", err);
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("gateway-sync.test.ts") || process.argv[1]?.endsWith("gateway-sync.test.js")) {
+  runGatewaySyncTests()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Test failed:", err);
+      process.exit(1);
+    });
+}

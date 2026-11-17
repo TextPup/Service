@@ -12,11 +12,11 @@ async function runAllTests() {
   console.log("==================================================================");
 
   const testSuites = [
-    { name: "Phase 2: Database Schema & Crypto Vault", file: path.join(__dirname, "test-phase2.ts") },
-    { name: "Phase 3: Media Processing & Carrier Compression", file: path.join(__dirname, "test-phase3.ts") },
-    { name: "Phase 4: SMSGate Gateway, Webhooks & Sync Engine", file: path.join(__dirname, "test-phase4.ts") },
-    { name: "Phase 5: Auth, Passkey, TOTP & Setup Wizard API", file: path.join(__dirname, "test-phase5.ts") },
-    { name: "Phase 6: Application Routes, Contacts, Media & Events", file: path.join(__dirname, "test-phase6.ts") },
+    { name: "Database Schema & Crypto Vault", file: path.join(__dirname, "crypto-vault.test.ts") },
+    { name: "Media Processing & Carrier Compression", file: path.join(__dirname, "media-processor.test.ts") },
+    { name: "Gateway Webhooks & Inbox Reconciliation", file: path.join(__dirname, "gateway-sync.test.ts") },
+    { name: "Authentication, Passkeys, TOTP & Setup", file: path.join(__dirname, "auth-setup.test.ts") },
+    { name: "Application Routes, Contacts, Media & Events", file: path.join(__dirname, "api-routes.test.ts") },
   ];
 
   for (const suite of testSuites) {
@@ -44,4 +44,3 @@ async function runAllTests() {
 runAllTests()
   .then(() => process.exit(0))
   .catch(() => process.exit(1));
-

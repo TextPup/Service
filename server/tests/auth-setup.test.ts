@@ -1,13 +1,13 @@
-import app from "./index.js";
-import { initDatabase, db, sqlite } from "./db/client.js";
-import { systemConfig, users, webauthnCredentials, sessions } from "./db/schema.js";
-import { runtimeSetupToken } from "./auth/setup.js";
+import app from "../src/index.js";
+import { initDatabase, db, sqlite } from "../src/db/client.js";
+import { systemConfig, users, webauthnCredentials, sessions } from "../src/db/schema.js";
+import { runtimeSetupToken } from "../src/auth/setup.js";
 import * as OTPAuth from "otpauth";
 import { eq } from "drizzle-orm";
-import { SmsGateClient } from "./gateway/smsgateClient.js";
+import { SmsGateClient } from "../src/gateway/smsgateClient.js";
 
-async function runPhase5Tests() {
-  console.log("--- Starting Phase 5 Authentication & Setup Wizard Verification Tests ---");
+export async function runAuthSetupTests() {
+  console.log("--- Starting Authentication & Setup Tests ---");
 
   // 1. Reset state to uninitialized for testing setup wizard
   console.log("1. Resetting database to uninitialized state...");
@@ -116,7 +116,6 @@ async function runPhase5Tests() {
 
   // 5. Test Step 3: SMSGate Pairing & Permanent Lockdown
   console.log("5. Testing Step 3: Pairing & Permanent Onboarding Lockdown...");
-  // Mock SMSGate getDevices response for setup pair
   const origGetDevices = SmsGateClient.prototype.getDevices;
   const origEnsureWebhooks = SmsGateClient.prototype.ensureWebhooks;
   SmsGateClient.prototype.getDevices = async () => [
@@ -157,7 +156,7 @@ async function runPhase5Tests() {
   }
   console.log("   Step 3 pairing finalized successfully!");
 
-  // Verify Permanent 404 Lockdown on /api/setup/*
+  // 6. Verify Permanent 404 Lockdown on /api/setup/*
   console.log("6. Verifying Permanent 404 Lockdown of /api/setup/*...");
   const resLockedStep1 = await app.request("/api/setup/step1", {
     method: "POST",
@@ -319,7 +318,6 @@ async function runPhase5Tests() {
     throw new Error(`Logout failed: ${await logoutRes.text()}`);
   }
 
-  // Token should now be invalid
   const meAfterLogout = await app.request("/api/auth/me", {
     headers: {
       Authorization: `Bearer ${sessionToken}`,
@@ -330,12 +328,14 @@ async function runPhase5Tests() {
   }
   console.log("   Session successfully revoked upon logout!");
 
-  console.log("--- All Phase 5 Tests Passed Successfully! ---");
+  console.log("--- All Authentication & Setup Tests Passed Successfully! ---");
 }
 
-runPhase5Tests()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Test failed:", err);
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("auth-setup.test.ts") || process.argv[1]?.endsWith("auth-setup.test.js")) {
+  runAuthSetupTests()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Test failed:", err);
+      process.exit(1);
+    });
+}

@@ -14,12 +14,12 @@ import {
   processInboundMedia,
   MAX_IMAGE_BYTES,
   MAX_VIDEO_BYTES,
-} from "./media/processor.js";
+} from "../src/media/processor.js";
 
 const execFileAsync = promisify(execFile);
 
-async function runPhase3Tests() {
-  console.log("--- Starting Phase 3 Media Processor Verification Tests ---");
+export async function runMediaProcessorTests() {
+  console.log("--- Starting Media Processor & Compression Tests ---");
 
   // 1. MIME Classification Tests
   console.log("1. Testing MIME Classification...");
@@ -33,7 +33,6 @@ async function runPhase3Tests() {
 
   // 2. Large Image Compression & EXIF Stripping
   console.log("2. Testing High-Resolution Image Processing & Carrier Compression...");
-  // Create an artificial 2400x1800 uncompressed raw RGBA buffer
   const width = 2400;
   const height = 1800;
   const rawSvg = `
@@ -78,7 +77,6 @@ async function runPhase3Tests() {
   const tmpDir = os.tmpdir();
   const testVideoPath = path.join(tmpDir, `textpup_test_vid_${Date.now()}.mp4`);
   try {
-    // Generate 2 seconds of test video with audio using ffmpeg
     await execFileAsync("ffmpeg", [
       "-y",
       "-f",
@@ -102,14 +100,12 @@ async function runPhase3Tests() {
     const testVideoBytes = await fs.readFile(testVideoPath);
     console.log(`   Synthesized test video: ${testVideoBytes.length} bytes`);
 
-    // Test video thumbnail extraction
     const videoThumb = await generateVideoThumbnail(testVideoBytes);
     console.log(`   Video poster thumbnail generated: ${videoThumb.sizeBytes} bytes, width: ${videoThumb.width}`);
     if (videoThumb.width > 240) {
       throw new Error(`Video thumbnail width exceeds 240px! Width: ${videoThumb.width}`);
     }
 
-    // Test video compression pipeline
     const compressedVid = await compressVideo(testVideoBytes);
     console.log(`   Transcoded video: ${compressedVid.sizeBytes} bytes, ${compressedVid.width}x${compressedVid.height}`);
     if (compressedVid.sizeBytes > MAX_VIDEO_BYTES) {
@@ -145,12 +141,14 @@ async function runPhase3Tests() {
     throw new Error("Failed to reject oversized document!");
   }
 
-  console.log("--- All Phase 3 Tests Passed Successfully! ---");
+  console.log("--- All Media Processor Tests Passed Successfully! ---");
 }
 
-runPhase3Tests()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error("Test failed:", err);
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("media-processor.test.ts") || process.argv[1]?.endsWith("media-processor.test.js")) {
+  runMediaProcessorTests()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Test failed:", err);
+      process.exit(1);
+    });
+}

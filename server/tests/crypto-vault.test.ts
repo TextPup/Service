@@ -1,5 +1,5 @@
-import { initDatabase, db, sqlite } from "./db/client.js";
-import { systemConfig } from "./db/schema.js";
+import { initDatabase, db, sqlite } from "../src/db/client.js";
+import { systemConfig } from "../src/db/schema.js";
 import {
   initializeVault,
   lockVault,
@@ -13,11 +13,11 @@ import {
   sealPayload,
   unsealPayload,
   generateRecoveryKey,
-} from "./crypto/vault.js";
-import { encryptMediaBuffer, decryptMediaFile } from "./crypto/mediaCrypto.js";
+} from "../src/crypto/vault.js";
+import { encryptMediaBuffer, decryptMediaFile } from "../src/crypto/mediaCrypto.js";
 
-async function runPhase2Tests() {
-  console.log("--- Starting Phase 2 Verification Tests ---");
+export async function runCryptoVaultTests() {
+  console.log("--- Starting Crypto Vault & Schema Tests ---");
 
   // 1. Initialize SQLite Database
   console.log("1. Initializing database schema...");
@@ -128,14 +128,14 @@ async function runPhase2Tests() {
   }
   console.log("   Vault unlocked with recovery key!");
 
-  console.log("--- All Phase 2 Tests Passed Successfully! ---");
+  console.log("--- All Crypto Vault Tests Passed Successfully! ---");
 }
 
-runPhase2Tests()
-  .then(() => {
-    process.exit(0);
-  })
-  .catch((err) => {
-    console.error("Test failed:", err);
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("crypto-vault.test.ts") || process.argv[1]?.endsWith("crypto-vault.test.js")) {
+  runCryptoVaultTests()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error("Test failed:", err);
+      process.exit(1);
+    });
+}
