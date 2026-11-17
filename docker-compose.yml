@@ -1,59 +1,54 @@
+# ==============================================================================
+# TextPup Docker Compose Configuration
+#
+# Quickstart:
+#   1. Copy environment template:
+#      cp .env.example .env
+#   2. Launch TextPup:
+#      docker compose up -d
+#   3. Retrieve the first-run Setup Token from logs (if not set in .env):
+#      docker compose logs textpup
+#   4. Open http://localhost:8080 in your browser to begin the Setup Wizard.
+# ==============================================================================
+
 services:
-  mariadb:
-    image: mariadb:11
-    restart: unless-stopped
-    environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-      MARIADB_DATABASE: smsgateway
-      MARIADB_USER: smsgateway
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
-    volumes:
-      - smsgate_db:/var/lib/mysql
-    networks:
-      - textpup_internal
-
-  sms-gateway:
-    image: capcom6/sms-gateway:latest
-    restart: unless-stopped
-    depends_on:
-      - mariadb
-    ports:
-      - "3000:3000" # Accessible on LAN/Tailscale for host Android APK (/mobile/v1)
-    environment:
-      HTTP__LISTEN: "0.0.0.0:3000"
-      DATABASE__DRIVER: "mysql"
-      DATABASE__HOST: "mariadb"
-      DATABASE__PORT: "3306"
-      DATABASE__USER: "smsgateway"
-      DATABASE__PASSWORD: ${MARIADB_PASSWORD}
-      DATABASE__NAME: "smsgateway"
-      GATEWAY__MODE: "private"
-      GATEWAY__PRIVATE_TOKEN: ${GATEWAY_PRIVATE_TOKEN}
-    networks:
-      - textpup_internal
-
   textpup:
-    build: .
+    # Build from local repository source
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Alternatively, pull pre-built container from GitHub Packages:
+    # image: ghcr.io/your-org/textpup-service:latest
+
+    container_name: textpup
     restart: unless-stopped
-    depends_on:
-      - sms-gateway
     ports:
-      - "8080:8080" # Expose via reverse proxy / Cloudflare Tunnel
+      - "${PORT:-8080}:8080"
     environment:
-      PORT: "8080"
-      DATA_DIR: "/data"
-      APP_SETUP_TOKEN: ${APP_SETUP_TOKEN:-} # Optional; auto-generated & logged on boot if blank
-      RP_ID: ${RP_ID:-localhost}            # WebAuthn Relying Party domain (e.g., sms.example.com)
-      RP_ORIGIN: ${RP_ORIGIN:-http://localhost:8080}
+      - PORT=8080
+      - DATA_DIR=/data
+      - NODE_ENV=production
+
+      # WebAuthn Passkeys: Domain & Origin
+      # For local dev / LAN: RP_ID=localhost, RP_ORIGIN=http://localhost:8080
+      # For production HTTPS: RP_ID=sms.example.com, RP_ORIGIN=https://sms.example.com
+      - RP_ID=${RP_ID:-localhost}
+      - RP_ORIGIN=${RP_ORIGIN:-http://localhost:8080}
+
+      # First-run bootstrap setup token (optional; auto-generated on first boot if blank)
+      - APP_SETUP_TOKEN=${APP_SETUP_TOKEN:-}
+
+      # Minutes of inactivity before crypto vault auto-locks active keys in RAM (default: 30)
+      - VAULT_AUTO_LOCK_MINUTES=${VAULT_AUTO_LOCK_MINUTES:-30}
+
     volumes:
+      # Named volume for persistent SQLite DB, encryption keys, and encrypted MMS media
       - textpup_data:/data
-    networks:
-      - textpup_internal
+
+      # Alternatively, mount to a local folder on your host machine:
+      # - ./data:/data
 
 volumes:
-  smsgate_db:
   textpup_data:
-
-networks:
-  textpup_internal:
-    driver: bridge
+    driver: local
