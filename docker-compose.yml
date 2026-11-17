@@ -1,0 +1,59 @@
+services:
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: smsgateway
+      MARIADB_USER: smsgateway
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - smsgate_db:/var/lib/mysql
+    networks:
+      - textpup_internal
+
+  sms-gateway:
+    image: capcom6/sms-gateway:latest
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    ports:
+      - "3000:3000" # Accessible on LAN/Tailscale for host Android APK (/mobile/v1)
+    environment:
+      HTTP__LISTEN: "0.0.0.0:3000"
+      DATABASE__DRIVER: "mysql"
+      DATABASE__HOST: "mariadb"
+      DATABASE__PORT: "3306"
+      DATABASE__USER: "smsgateway"
+      DATABASE__PASSWORD: ${MARIADB_PASSWORD}
+      DATABASE__NAME: "smsgateway"
+      GATEWAY__MODE: "private"
+      GATEWAY__PRIVATE_TOKEN: ${GATEWAY_PRIVATE_TOKEN}
+    networks:
+      - textpup_internal
+
+  textpup:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - sms-gateway
+    ports:
+      - "8080:8080" # Expose via reverse proxy / Cloudflare Tunnel
+    environment:
+      PORT: "8080"
+      DATA_DIR: "/data"
+      APP_SETUP_TOKEN: ${APP_SETUP_TOKEN:-} # Optional; auto-generated & logged on boot if blank
+      RP_ID: ${RP_ID:-localhost}            # WebAuthn Relying Party domain (e.g., sms.example.com)
+      RP_ORIGIN: ${RP_ORIGIN:-http://localhost:8080}
+    volumes:
+      - textpup_data:/data
+    networks:
+      - textpup_internal
+
+volumes:
+  smsgate_db:
+  textpup_data:
+
+networks:
+  textpup_internal:
+    driver: bridge
