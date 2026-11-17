@@ -1,4 +1,4 @@
-<img src="assets/textpup-banner-github.jpg" />
+<img src="assets/textpup-banner-max.jpg" height="640" />
 
 # TextPup Web & Backend Service
 
