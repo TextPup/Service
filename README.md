@@ -1,3 +1,5 @@
+<img src="assets/textpup-banner-github.jpg" />
+
 # TextPup Web & Backend Service
 
 > Self-hosted, zero-knowledge encrypted messaging platform for Android cellular gateways.
